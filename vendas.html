@@ -1008,13 +1008,56 @@ function carregarDados() {
   });
 }
 
+// ── Valores fixos dos filtros (obtidos do Qlik Farol) ────────────────────────
+const FILTROS_FIXOS = {
+  departamentos: [
+    'A CLASSIFICAR','BAZAR','DESPESAS','GASTRONOMIA',
+    'HIGIENE E LIMPEZA','MERCEARIA','PERECIVEIS'
+  ],
+  secoes: [
+    'ACOUGUE','ADEGA','ALMOXARIFADO','ALTO GIRO','ARRUMACAO E FVM',
+    'AUTOMOTIVOS','CAMA - MESA - BANHO','CASA','CONSUMO LOJA',
+    'DESCARTAVEIS','ELETRO','EMBALAGENS E INSUMOS','FAMILIAS',
+    'HORTIFRUTI','IMOBILIZADO','INSUMO E MATERIA PRIMA','LANCHONETE',
+    'LAZER','LIMPEZA','LIMPEZA DA CASA','LIQUIDA','PADARIA',
+    'PAPELARIA - M. ESCRITORIO','PAS CONGELADOS','PAS RESFRIADOS',
+    'PERFUMARIA','PET E JARDIM','RESTAURANTE','ROTISSERIA',
+    'SACOLAS - CAIXA','SALSICHARIA','SECA DOCE','SECA SALGADA',
+    'TABACARIA','VEST CASA'
+  ],
+  compradores: [
+    'ADILIO DOS SANTOS NASCIMENTO','AGNALDO PONTE TEIXEIRA',
+    'ALISSON OLIVEIRA SILVA','ANDRE LUIZ DA SILVA BEZERRA',
+    'ANTONIO CESAR DA SILVA','ARISTENIA MARIA SOARES DA SILVA',
+    'DIEGO VIEIRA SOUSA','ERASMO CARLOS DA SILVA',
+    'FABIANA COSTA DA SILVA','FELIPE GUIMARAES PAES LANDIM',
+    'FELIPE RUAN CORREIA','GRAZIELLY FERREIRA DA SILVA',
+    'JACQUELINE GONCALVES LIMA','JAIRAN ALVES PARAISO',
+    'LEONARDO DA SILVA REIS','LUCAS HENRIQUE PEREIRA',
+    'LUENI DE MELO SAGUI DE OLIVEIRA','LUIZ CARLOS MENDES SANTIAGO',
+    'MADALENA DA SILVA MONTEIRO','MARA BRUNA DE MIRANDA GOIS',
+    'MARCIO GLEISON PEREIRA SOUSA','MARCIO RIBEIRO ALVES',
+    'MARIA GORETI DA CONCEICAO SOUZA','MARIA OLIVEIRA DE MACEDO SANTOS',
+    'MICHELE CRISTINA PIRES FARIAS SOUSA','MONICA NAYARA DE MATOS',
+    'NATÁLIA LUÍSA BARBOSA DA SILVA','NEIRILANE SOUSA DA COSTA',
+    'NUBIA DE SOUZA SILVA','PAULO HENRIQUE MOURA BRITO DOS SANTOS',
+    'PEDRO HENRIQUE CAVALCANTE DOS SANTOS','PEDRO ISSA HELOU',
+    'RITYELLE VALENTE DE ARAUJO','ROMARIO BATISTA MAGALHAES',
+    'SERGIO CARVALHO SAMPAIO','SERGIO DE JESUS ARAUJO',
+    'SOLANGE OLIVEIRA LISBOA BOMBIER','SUELLEN DE CARVALHO OLIVEIRA',
+    'THAINA RAMOS DE SOUZA','THAYLLA SILVA DE ARAUJO',
+    'THIAGO PASSOS EVARISTO','VITOR HUGO DE SOUSA PEREIRA',
+    'WDILSON ALVES PEREIRA','WILLIAN DA SILVA DE JESUS'
+  ]
+};
+
 // Inicializa
 initCal();
-initDD('bandeira', ['BIG BOX', 'ULT']);
-initDD('empresa',  []);
-initDD('departamento', []);
-initDD('secao',    []);
-initDD('comprador',[]);
+initDD('bandeira',     ['BIG BOX', 'ULT']);
+initDD('empresa',      []);
+initDD('departamento', FILTROS_FIXOS.departamentos);
+initDD('secao',        FILTROS_FIXOS.secoes);
+initDD('comprador',    FILTROS_FIXOS.compradores);
 
 // Pré-aquece o backend e carrega filtros + dados em paralelo
 (function wakeAndLoad() {
@@ -1022,25 +1065,23 @@ initDD('comprador',[]);
   tbody.innerHTML = '<tr class="loading-row"><td colspan="10"><span class="spinner-inline"></span>Iniciando servidor...</td></tr>';
   let acordado = false;
 
-  function carregarFiltros() {
+  // Atualiza filtros do backend em background (captura eventuais novos valores)
+  function atualizarFiltros() {
     fetch(BACKEND_URL + '/api/filtros')
       .then(function(r) { return r.json(); })
       .then(function(f) {
         if (f.error) return;
-        initDD('comprador',    f.compradores);
-        initDD('departamento', f.departamentos);
-        initDD('secao',        f.secoes);
+        if (f.departamentos && f.departamentos.length > 0) initDD('departamento', f.departamentos);
+        if (f.secoes        && f.secoes.length > 0)        initDD('secao',        f.secoes);
+        if (f.compradores   && f.compradores.length > 0)   initDD('comprador',    f.compradores);
       })
-      .catch(function() {
-        // Retry após 5s se o endpoint ainda não existir no servidor
-        setTimeout(carregarFiltros, 5000);
-      });
+      .catch(function() {});
   }
 
   function iniciar() {
     if (acordado) return;
     acordado = true;
-    carregarFiltros();
+    atualizarFiltros();
     carregarDados();
   }
 
