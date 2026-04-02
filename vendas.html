@@ -1016,53 +1016,44 @@ initDD('departamento', []);
 initDD('secao',    []);
 initDD('comprador',[]);
 
-// Ocultar filtros dinâmicos até carregarem dados do backend
-document.getElementById('wrap-departamento').style.display = 'none';
-document.getElementById('wrap-secao').style.display = 'none';
-document.getElementById('wrap-comprador').style.display = 'none';
-
 // Pré-aquece o backend e carrega filtros + dados em paralelo
 (function wakeAndLoad() {
   const tbody = document.getElementById('tabela-lojas');
   tbody.innerHTML = '<tr class="loading-row"><td colspan="10"><span class="spinner-inline"></span>Iniciando servidor...</td></tr>';
   let acordado = false;
 
-  function iniciar() {
-    if (acordado) return;
-    acordado = true;
-
-    // Filtros dinâmicos: departamento, seção, comprador
+  function carregarFiltros() {
     fetch(BACKEND_URL + '/api/filtros')
       .then(function(r) { return r.json(); })
       .then(function(f) {
-        if (!f.error) {
-          initDD('comprador',    f.compradores);
-          initDD('departamento', f.departamentos);
-          initDD('secao',        f.secoes);
-          document.getElementById('wrap-departamento').style.display = '';
-          document.getElementById('wrap-secao').style.display = '';
-          document.getElementById('wrap-comprador').style.display = '';
-        }
+        if (f.error) return;
+        initDD('comprador',    f.compradores);
+        initDD('departamento', f.departamentos);
+        initDD('secao',        f.secoes);
       })
-      .catch(function() {});
+      .catch(function() {
+        // Retry após 5s se o endpoint ainda não existir no servidor
+        setTimeout(carregarFiltros, 5000);
+      });
+  }
 
-    // Dados da tabela
+  function iniciar() {
+    if (acordado) return;
+    acordado = true;
+    carregarFiltros();
     carregarDados();
   }
 
-  // Acorda o servidor
   fetch(BACKEND_URL + '/api/health')
     .then(function() { iniciar(); })
     .catch(function() { iniciar(); });
 
-  // Se demorar mais de 8s mostra aviso
   setTimeout(function() {
     if (!acordado) {
       tbody.innerHTML = '<tr class="loading-row"><td colspan="10"><span class="spinner-inline"></span>Aguardando servidor iniciar... (pode levar até 60s na primeira carga)</td></tr>';
     }
   }, 8000);
 
-  // Fallback
   setTimeout(function() { iniciar(); }, 70000);
 })();
 </script>
