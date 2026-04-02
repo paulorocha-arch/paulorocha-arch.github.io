@@ -465,6 +465,24 @@
       </div>
     </div>
 
+    <div style="position:relative;" id="wrap-departamento">
+      <button class="filter-btn" id="btn-departamento" onclick="toggleDD('departamento')">
+        <span id="lbl-departamento">Departamento</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="filter-dropdown" id="dd-departamento">
+        <div class="dd-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" placeholder="Pesquisar..." oninput="filterDD('departamento',this.value)"/>
+        </div>
+        <div class="dd-list" id="list-departamento"></div>
+        <div class="dd-footer">
+          <span id="count-departamento"></span>
+          <button class="dd-apply" onclick="applyDD('departamento')">Aplicar</button>
+        </div>
+      </div>
+    </div>
+
     <div style="position:relative;" id="wrap-secao">
       <button class="filter-btn" id="btn-secao" onclick="toggleDD('secao')">
         <span id="lbl-secao">Seção</span>
@@ -781,10 +799,11 @@ function updateDateLabel() {
 
 /* DROPDOWNS */
 const DD_DATA = {
-  bandeira:  { all: ['BIG BOX','ULT'], selected: new Set() },
-  empresa:   { all: [], selected: new Set() },
-  secao:     { all: [], selected: new Set() },
-  comprador: { all: [], selected: new Set() },
+  bandeira:     { all: ['BIG BOX','ULT'], selected: new Set() },
+  empresa:      { all: [], selected: new Set() },
+  departamento: { all: [], selected: new Set() },
+  secao:        { all: [], selected: new Set() },
+  comprador:    { all: [], selected: new Set() },
 };
 
 function initDD(name, items) {
@@ -843,7 +862,7 @@ function applyDD(name) {
 function updateDDLabel(name) {
   const d = DD_DATA[name];
   const lbl = document.getElementById('lbl-' + name);
-  const labels = { bandeira:'Bandeira', empresa:'Empresa', secao:'Secao', comprador:'Comprador' };
+  const labels = { bandeira:'Bandeira', empresa:'Empresa', departamento:'Departamento', secao:'Seção', comprador:'Comprador' };
   if (d.selected.size === 0) lbl.textContent = labels[name];
   else if (d.selected.size === d.all.length) lbl.textContent = labels[name];
   else if (d.selected.size === 1) lbl.textContent = Array.from(d.selected)[0];
@@ -874,11 +893,12 @@ document.addEventListener('click', function(e) {
 });
 
 /* DADOS — escuta eventos dos filtros */
-window.addEventListener('filtro:data', function(e) { carregarDados(); });
-window.addEventListener('filtro:bandeira',  function() { carregarDados(); });
-window.addEventListener('filtro:empresa',   function() { carregarDados(); });
-window.addEventListener('filtro:secao',     function() { carregarDados(); });
-window.addEventListener('filtro:comprador', function() { carregarDados(); });
+window.addEventListener('filtro:data',         function() { carregarDados(); });
+window.addEventListener('filtro:bandeira',     function() { carregarDados(); });
+window.addEventListener('filtro:empresa',      function() { carregarDados(); });
+window.addEventListener('filtro:departamento', function() { carregarDados(); });
+window.addEventListener('filtro:secao',        function() { carregarDados(); });
+window.addEventListener('filtro:comprador',    function() { carregarDados(); });
 
 function fmtMoeda(v) {
   if (v == null || isNaN(v)) return '—';
@@ -910,15 +930,21 @@ function carregarDados() {
   const mes     = rangeStart ? rangeStart.getMonth() + 1 : new Date().getMonth() + 1;
   const diaIni  = rangeStart ? rangeStart.getDate() : 1;
   const diaFim  = (rangeEnd || rangeStart) ? (rangeEnd || rangeStart).getDate() : new Date().getDate() - 1;
-  const bandeiras = Array.from(DD_DATA.bandeira.selected);
-  const empresas  = Array.from(DD_DATA.empresa.selected);
+  const bandeiras     = Array.from(DD_DATA.bandeira.selected);
+  const empresas      = Array.from(DD_DATA.empresa.selected);
+  const compradores_f = Array.from(DD_DATA.comprador.selected);
+  const departamentos = Array.from(DD_DATA.departamento.selected);
+  const secoes        = Array.from(DD_DATA.secao.selected);
 
   fetch(BACKEND_URL + '/api/vendas', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      ano: ano, mes: mes, dia_ini: diaIni, dia_fim: diaFim,
-      bandeiras: bandeiras, empresas: empresas
+      ano, mes, dia_ini: diaIni, dia_fim: diaFim,
+      bandeiras, empresas,
+      compradores: compradores_f,
+      departamentos,
+      secoes
     })
   })
   .then(function(r) { return r.json(); })
@@ -986,38 +1012,57 @@ function carregarDados() {
 initCal();
 initDD('bandeira', ['BIG BOX', 'ULT']);
 initDD('empresa',  []);
+initDD('departamento', []);
 initDD('secao',    []);
 initDD('comprador',[]);
 
-// Ocultar filtros sem dados no modelo atual
+// Ocultar filtros dinâmicos até carregarem dados do backend
+document.getElementById('wrap-departamento').style.display = 'none';
 document.getElementById('wrap-secao').style.display = 'none';
 document.getElementById('wrap-comprador').style.display = 'none';
 
-// Pré-aquece o backend (Render dorme após inatividade) e carrega dados automaticamente
+// Pré-aquece o backend e carrega filtros + dados em paralelo
 (function wakeAndLoad() {
   const tbody = document.getElementById('tabela-lojas');
   tbody.innerHTML = '<tr class="loading-row"><td colspan="10"><span class="spinner-inline"></span>Iniciando servidor...</td></tr>';
-  let carregado = false;
+  let acordado = false;
 
   function iniciar() {
-    if (carregado) return;
-    carregado = true;
+    if (acordado) return;
+    acordado = true;
+
+    // Filtros dinâmicos: departamento, seção, comprador
+    fetch(BACKEND_URL + '/api/filtros')
+      .then(function(r) { return r.json(); })
+      .then(function(f) {
+        if (!f.error) {
+          initDD('comprador',    f.compradores);
+          initDD('departamento', f.departamentos);
+          initDD('secao',        f.secoes);
+          document.getElementById('wrap-departamento').style.display = '';
+          document.getElementById('wrap-secao').style.display = '';
+          document.getElementById('wrap-comprador').style.display = '';
+        }
+      })
+      .catch(function() {});
+
+    // Dados da tabela
     carregarDados();
   }
 
-  // Ping de saúde — acorda o servidor se estiver dormindo
+  // Acorda o servidor
   fetch(BACKEND_URL + '/api/health')
     .then(function() { iniciar(); })
     .catch(function() { iniciar(); });
 
-  // Se demorar mais de 8s, atualiza a mensagem
+  // Se demorar mais de 8s mostra aviso
   setTimeout(function() {
-    if (!carregado) {
+    if (!acordado) {
       tbody.innerHTML = '<tr class="loading-row"><td colspan="10"><span class="spinner-inline"></span>Aguardando servidor iniciar... (pode levar até 60s na primeira carga)</td></tr>';
     }
   }, 8000);
 
-  // Fallback: garante que carrega mesmo se o health check travar
+  // Fallback
   setTimeout(function() { iniciar(); }, 70000);
 })();
 </script>
