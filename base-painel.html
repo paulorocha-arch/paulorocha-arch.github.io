@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Análise Diária</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #F4F6F9;
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ═══════════════════════════════════════
+       SIDEBAR
+    ═══════════════════════════════════════ */
+    .sidebar {
+      width: 230px; min-height: 100vh;
+      background: #1a1a2e;
+      display: flex; flex-direction: column;
+      position: fixed; top: 0; left: 0;
+      z-index: 100;
+      box-shadow: 3px 0 12px rgba(0,0,0,0.15);
+    }
+    .sidebar-logo {
+      padding: 22px 20px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; gap: 11px;
+    }
+    .sidebar-logo .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #2980b9, #1a5f7a);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .sidebar-logo .logo-icon svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 1.8; }
+    .sidebar-logo .logo-text { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.3; }
+    .sidebar-logo .logo-text span { display: block; font-size: 11px; font-weight: 400; color: rgba(255,255,255,0.45); }
+    .sidebar-section { padding: 18px 12px 6px; }
+    .sidebar-section-label { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; padding: 0 8px; margin-bottom: 6px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 11px;
+      padding: 10px 12px; border-radius: 8px; cursor: pointer;
+      color: rgba(255,255,255,0.6); font-size: 13.5px; font-weight: 500;
+      text-decoration: none; transition: background .15s, color .15s;
+      margin-bottom: 2px; user-select: none;
+    }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.7; transition: opacity .15s; }
+    .nav-item:hover { background: rgba(255,255,255,0.07); color: #fff; }
+    .nav-item:hover svg { opacity: 1; }
+    .nav-item.active { background: linear-gradient(135deg,rgba(41,128,185,0.35),rgba(26,95,122,0.35)); color: #fff; border-left: 3px solid #2980b9; }
+    .nav-item.active svg { opacity: 1; }
+    .sidebar-spacer { flex: 1; }
+    .sidebar-bottom { padding: 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .user-area { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; cursor: pointer; transition: background .15s; }
+    .user-area:hover { background: rgba(255,255,255,0.07); }
+    .user-avatar { width: 32px; height: 32px; background: linear-gradient(135deg,#2980b9,#1a5f7a); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .user-info { flex: 1; min-width: 0; }
+    .user-name  { font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-role  { font-size: 11px; color: rgba(255,255,255,0.4); }
+    .btn-logout { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.35); padding: 4px; display: flex; align-items: center; transition: color .15s; }
+    .btn-logout:hover { color: #e74c3c; }
+    .btn-logout svg { width: 16px; height: 16px; }
+
+    /* ═══════════════════════════════════════
+       MAIN
+    ═══════════════════════════════════════ */
+    .main { margin-left: 230px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+
+    .topbar {
+      background: #fff; border-bottom: 1px solid #e8e8e8;
+      padding: 0 24px; height: 58px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-left h1 { font-size: 16px; font-weight: 700; color: #1a1a2e; }
+    .topbar-left .breadcrumb { font-size: 12px; color: #aaa; margin-top: 1px; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .topbar-date { font-size: 12px; color: #666; background: #F4F6F9; padding: 5px 12px; border-radius: 20px; }
+
+    /* ═══════════════════════════════════════
+       FILTER BAR
+    ═══════════════════════════════════════ */
+    .filter-bar {
+      background: #fff;
+      border-bottom: 1px solid #e8e8e8;
+      padding: 10px 24px;
+      display: flex; align-items: center;
+      gap: 10px; flex-wrap: wrap;
+      position: sticky; top: 58px; z-index: 40;
+    }
+
+    /* Botão de data */
+    .filter-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 14px; border-radius: 8px;
+      border: 1.5px solid #e0e0e0; background: #fff;
+      font-size: 13px; font-family: Arial, sans-serif;
+      color: #1a1a2e; cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+      white-space: nowrap;
+      position: relative;
+    }
+    .filter-btn:hover { border-color: #2980b9; }
+    .filter-btn.active { border-color: #2980b9; box-shadow: 0 0 0 3px rgba(41,128,185,0.12); }
+    .filter-btn svg { width: 15px; height: 15px; color: #2980b9; flex-shrink: 0; }
+    .filter-btn .chevron { width: 14px; height: 14px; color: #aaa; transition: transform .2s; }
+    .filter-btn.active .chevron { transform: rotate(180deg); }
+
+    /* Dropdown genérico */
+    .filter-dropdown {
+      position: absolute; top: calc(100% + 6px); left: 0;
+      background: #fff; border: 1.5px solid #e0e0e0;
+      border-radius: 10px; min-width: 240px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      z-index: 200; display: none; overflow: hidden;
+    }
+    .filter-dropdown.open { display: block; }
+
+    .dd-search {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .dd-search svg { width: 14px; height: 14px; color: #aaa; flex-shrink: 0; }
+    .dd-search input {
+      border: none; outline: none; font-size: 13px;
+      font-family: Arial, sans-serif; color: #1a1a2e;
+      width: 100%; background: transparent;
+    }
+    .dd-search input::placeholder { color: #bbb; }
+
+    .dd-list { max-height: 220px; overflow-y: auto; padding: 6px 0; }
+    .dd-list::-webkit-scrollbar { width: 4px; }
+    .dd-list::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 4px; }
+
+    .dd-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px; cursor: pointer;
+      font-size: 13px; color: #333;
+      transition: background .12s;
+      user-select: none;
+    }
+    .dd-item:hover { background: #f5f7fa; }
+    .dd-item.selected { color: #2980b9; font-weight: 600; }
+    .dd-item.select-all { font-weight: 700; color: #1a1a2e; border-bottom: 1px solid #f0f0f0; margin-bottom: 4px; }
+
+    .dd-checkbox {
+      width: 16px; height: 16px; border-radius: 4px;
+      border: 1.5px solid #d0d0d0; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #fff; transition: border-color .12s, background .12s;
+    }
+    .dd-item.selected .dd-checkbox,
+    .dd-item.select-all.all-selected .dd-checkbox {
+      background: #2980b9; border-color: #2980b9;
+    }
+    .dd-checkbox::after {
+      content: ''; display: none;
+      width: 9px; height: 5px;
+      border-left: 2px solid #fff; border-bottom: 2px solid #fff;
+      transform: rotate(-45deg) translateY(-1px);
+    }
+    .dd-item.selected .dd-checkbox::after,
+    .dd-item.select-all.all-selected .dd-checkbox::after { display: block; }
+
+    .dd-footer {
+      padding: 8px 12px;
+      border-top: 1px solid #f0f0f0;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: #888;
+    }
+    .dd-footer .dd-apply {
+      padding: 5px 14px; background: #2980b9; color: #fff;
+      border: none; border-radius: 6px; cursor: pointer;
+      font-size: 12px; font-family: Arial, sans-serif; font-weight: 700;
+      transition: opacity .15s;
+    }
+    .dd-footer .dd-apply:hover { opacity: 0.88; }
+
+    /* ═══════════════════════════════════════
+       CALENDÁRIO
+    ═══════════════════════════════════════ */
+    .cal-dropdown {
+      position: absolute; top: calc(100% + 6px); left: 0;
+      background: #fff; border: 1.5px solid #e0e0e0;
+      border-radius: 12px; width: 290px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+      z-index: 200; display: none; padding: 16px;
+    }
+    .cal-dropdown.open { display: block; }
+
+    .cal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .cal-header .cal-title { font-size: 14px; font-weight: 700; color: #1a1a2e; }
+    .cal-nav { background: none; border: none; cursor: pointer; color: #888; padding: 4px 8px; border-radius: 6px; font-size: 16px; transition: background .12s; }
+    .cal-nav:hover { background: #f0f0f0; color: #1a1a2e; }
+
+    .cal-weekdays {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      text-align: center; margin-bottom: 6px;
+    }
+    .cal-weekdays span { font-size: 11px; font-weight: 700; color: #aaa; padding: 4px 0; }
+
+    .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .cal-day {
+      text-align: center; padding: 7px 2px;
+      font-size: 13px; color: #333; cursor: pointer;
+      border-radius: 6px; transition: background .12s, color .12s;
+      user-select: none;
+    }
+    .cal-day:hover:not(.empty):not(.disabled) { background: #e8f0fe; color: #2980b9; }
+    .cal-day.empty { cursor: default; }
+    .cal-day.disabled { color: #ccc; cursor: default; }
+    .cal-day.in-range { background: #dbeafe; color: #1d4ed8; border-radius: 0; }
+    .cal-day.range-start, .cal-day.range-end { background: #2980b9 !important; color: #fff !important; border-radius: 6px; font-weight: 700; }
+    .cal-day.range-start { border-radius: 6px 0 0 6px; }
+    .cal-day.range-end   { border-radius: 0 6px 6px 0; }
+    .cal-day.range-start.range-end { border-radius: 6px; }
+    .cal-day.today { font-weight: 700; color: #2980b9; }
+
+    .cal-footer { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+    .cal-footer button {
+      padding: 6px 16px; border-radius: 7px; font-size: 12px;
+      font-family: Arial, sans-serif; font-weight: 700; cursor: pointer; border: none;
+    }
+    .cal-footer .cal-cancel { background: #f0f0f0; color: #555; }
+    .cal-footer .cal-apply  { background: #2980b9; color: #fff; }
+    .cal-footer .cal-cancel:hover { background: #e0e0e0; }
+    .cal-footer .cal-apply:hover  { opacity: .88; }
+
+    .cal-hint { font-size: 11px; color: #aaa; text-align: center; margin-top: 8px; }
+
+    /* ═══════════════════════════════════════
+       CONTENT AREA
+    ═══════════════════════════════════════ */
+    .content { padding: 24px; flex: 1; }
+
+    /* Responsivo */
+    @media (max-width: 1199px) { .sidebar { width: 200px; } .main { margin-left: 200px; } }
+    @media (max-width: 899px) {
+      .sidebar { width: 64px; overflow: hidden; }
+      .main { margin-left: 64px; }
+      .sidebar-logo .logo-text, .sidebar-section-label, .nav-item span, .user-info, .btn-logout { display: none; }
+      .nav-item { justify-content: center; padding: 12px 0; }
+      .user-area { justify-content: center; }
+      .sidebar-logo { justify-content: center; padding: 18px 0; }
+    }
+    @media (max-width: 599px) {
+      .sidebar { display: none; } .main { margin-left: 0; }
+      .filter-bar { gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.5l4-4 4 4 4-6 4 3"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+    </div>
+    <div class="logo-text">Análise Diária<span>Painel de Resultados</span></div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Módulos</div>
+    <a class="nav-item" href="dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Catálogo
+    </a>
+    <a class="nav-item active" href="vendas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.5l4-4 4 4 4-6 4 3"/><path stroke-linecap="round" d="M3 20h18"/></svg>
+      Vendas
+    </a>
+    <a class="nav-item" href="margem.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      Margem
+    </a>
+    <a class="nav-item" href="quebra.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M8 12h8"/></svg>
+      Quebra
+    </a>
+    <a class="nav-item" href="produto-negativo.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      Produto Negativo
+    </a>
+    <a class="nav-item" href="trocas.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+      Trocas
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Metas de Venda</div>
+    <a class="nav-item" href="lanc-meta-diaria.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M17.586 3.586a2 2 0 112.828 2.828L12 15l-4 1 1-4 8.586-8.414z"/></svg>
+      Lanç. Meta Diária
+    </a>
+  </div>
+
+  <div class="sidebar-spacer"></div>
+
+  <div class="sidebar-section" style="padding-bottom:4px">
+    <div class="sidebar-section-label">Sistema</div>
+    <a class="nav-item" href="configuracao.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      Configuração
+    </a>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="user-area">
+      <div class="user-avatar" id="user-avatar">P</div>
+      <div class="user-info">
+        <div class="user-name" id="user-name">Carregando…</div>
+        <div class="user-role">Administrador</div>
+      </div>
+      <button class="btn-logout" id="btn-logout" title="Sair">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 id="page-title">Vendas</h1>
+      <div class="breadcrumb" id="page-breadcrumb">Resultados diários e acumulados por loja</div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-date" id="topbar-date">
+        <span style="color:#aaa;margin-right:4px;">&#128337;</span>
+        <span id="last-sync-label">—</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar" id="filter-bar">
+
+    <!-- Filtro de Data -->
+    <div style="position:relative;" id="wrap-data">
+      <button class="filter-btn" id="btn-data" onclick="toggleCal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span id="lbl-data">Selecione um período</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <!-- Calendário -->
+      <div class="cal-dropdown" id="cal-dropdown">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="calNav(-1)">&#8249;</button>
+          <span class="cal-title" id="cal-title"></span>
+          <button class="cal-nav" onclick="calNav(1)">&#8250;</button>
+        </div>
+        <div class="cal-weekdays">
+          <span>Do</span><span>Se</span><span>Te</span><span>Qu</span><span>Qu</span><span>Se</span><span>Sá</span>
+        </div>
+        <div class="cal-days" id="cal-days"></div>
+        <div class="cal-hint" id="cal-hint">Clique para selecionar a data inicial</div>
+        <div class="cal-footer">
+          <button class="cal-cancel" onclick="closeCal()">Cancelar</button>
+          <button class="cal-apply"  onclick="applyDate()">Aplicar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtro Bandeira -->
+    <div style="position:relative;" id="wrap-bandeira">
+      <button class="filter-btn" id="btn-bandeira" onclick="toggleDD('bandeira')">
+        <span id="lbl-bandeira">Bandeira</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="filter-dropdown" id="dd-bandeira">
+        <div class="dd-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" placeholder="Pesquisar..." oninput="filterDD('bandeira',this.value)"/>
+        </div>
+        <div class="dd-list" id="list-bandeira"></div>
+        <div class="dd-footer">
+          <span id="count-bandeira"></span>
+          <button class="dd-apply" onclick="applyDD('bandeira')">Aplicar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtro Empresa -->
+    <div style="position:relative;" id="wrap-empresa">
+      <button class="filter-btn" id="btn-empresa" onclick="toggleDD('empresa')">
+        <span id="lbl-empresa">Empresa</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="filter-dropdown" id="dd-empresa">
+        <div class="dd-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" placeholder="Pesquisar..." oninput="filterDD('empresa',this.value)"/>
+        </div>
+        <div class="dd-list" id="list-empresa"></div>
+        <div class="dd-footer">
+          <span id="count-empresa"></span>
+          <button class="dd-apply" onclick="applyDD('empresa')">Aplicar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtro Seção -->
+    <div style="position:relative;" id="wrap-secao">
+      <button class="filter-btn" id="btn-secao" onclick="toggleDD('secao')">
+        <span id="lbl-secao">Seção</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="filter-dropdown" id="dd-secao">
+        <div class="dd-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" placeholder="Pesquisar..." oninput="filterDD('secao',this.value)"/>
+        </div>
+        <div class="dd-list" id="list-secao"></div>
+        <div class="dd-footer">
+          <span id="count-secao"></span>
+          <button class="dd-apply" onclick="applyDD('secao')">Aplicar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtro Comprador -->
+    <div style="position:relative;" id="wrap-comprador">
+      <button class="filter-btn" id="btn-comprador" onclick="toggleDD('comprador')">
+        <span id="lbl-comprador">Comprador</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="filter-dropdown" id="dd-comprador">
+        <div class="dd-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" placeholder="Pesquisar..." oninput="filterDD('comprador',this.value)"/>
+        </div>
+        <div class="dd-list" id="list-comprador"></div>
+        <div class="dd-footer">
+          <span id="count-comprador"></span>
+          <button class="dd-apply" onclick="applyDD('comprador')">Aplicar</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- /FILTER BAR -->
+
+  <!-- Área de conteúdo do painel -->
+  <div class="content" id="page-content">
+    <!-- conteúdo específico de cada página vai aqui -->
+    <p style="color:#aaa;font-size:14px;">Selecione o período e os filtros para carregar os dados.</p>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, collection, query, orderBy, limit, getDocs }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyB3s2ZQ-fC-YgIFXXXl7i9AjsiufK6ZnRY",
+    authDomain:        "projeto-paulo-d5ac4.firebaseapp.com",
+    projectId:         "projeto-paulo-d5ac4",
+    storageBucket:     "projeto-paulo-d5ac4.firebasestorage.app",
+    messagingSenderId: "844667053328",
+    appId:             "1:844667053328:web:716d64598f5c396e777195",
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  onAuthStateChanged(auth, user => {
+    if (!user) { window.location.href = 'index.html'; return; }
+    const name = user.displayName || user.email.split('@')[0];
+    document.getElementById('user-name').textContent   = name;
+    document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await signOut(auth);
+    window.location.href = 'index.html';
+  });
+
+  // Última atualização
+  async function loadLastSync() {
+    try {
+      const q = query(collection(db, "cache_vendas"), orderBy("saved_at","desc"), limit(1));
+      const snap = await getDocs(q);
+      const el = document.getElementById('last-sync-label');
+      if (!snap.empty) {
+        const dt = new Date(snap.docs[0].data().saved_at * 1000);
+        const d  = String(dt.getDate()).padStart(2,'0');
+        const m  = String(dt.getMonth()+1).padStart(2,'0');
+        const h  = dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        el.textContent = `Última atualização: ${d}/${m}/${dt.getFullYear()} às ${h}`;
+      } else { el.textContent = 'Sem dados em cache'; }
+    } catch { document.getElementById('last-sync-label').textContent = '—'; }
+  }
+  loadLastSync();
+</script>
+
+<script>
+/* ═══════════════════════════════════════
+   CALENDÁRIO
+═══════════════════════════════════════ */
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let calYear, calMonth, rangeStart = null, rangeEnd = null, selecting = false;
+
+function initCal() {
+  const d1 = new Date(); d1.setDate(d1.getDate() - 1);
+  calYear  = d1.getFullYear();
+  calMonth = d1.getMonth();
+  rangeStart = new Date(d1.getFullYear(), d1.getMonth(), 1);
+  rangeEnd   = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+  updateDateLabel();
+  renderCal();
+}
+
+function toggleCal() {
+  const dd = document.getElementById('cal-dropdown');
+  const btn = document.getElementById('btn-data');
+  closeAllDropdowns();
+  dd.classList.toggle('open');
+  btn.classList.toggle('active', dd.classList.contains('open'));
+  if (dd.classList.contains('open')) renderCal();
+}
+
+function closeCal() {
+  document.getElementById('cal-dropdown').classList.remove('open');
+  document.getElementById('btn-data').classList.remove('active');
+  selecting = false;
+}
+
+function calNav(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  renderCal();
+}
+
+function renderCal() {
+  document.getElementById('cal-title').textContent = `${MESES[calMonth]} ${calYear}`;
+  const container = document.getElementById('cal-days');
+  container.innerHTML = '';
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  for (let i = 0; i < firstDay; i++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day empty';
+    container.appendChild(el);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(calYear, calMonth, d);
+    const el = document.createElement('div');
+    el.className = 'cal-day';
+    el.textContent = d;
+
+    if (date.getTime() === today.getTime()) el.classList.add('today');
+    if (date > today) el.classList.add('disabled');
+
+    if (rangeStart && rangeEnd) {
+      const t = date.getTime();
+      const s = rangeStart.getTime(), e = rangeEnd.getTime();
+      if (t === s) el.classList.add('range-start');
+      if (t === e) el.classList.add('range-end');
+      if (t > s && t < e) el.classList.add('in-range');
+    } else if (rangeStart && date.getTime() === rangeStart.getTime()) {
+      el.classList.add('range-start', 'range-end');
+    }
+
+    if (!el.classList.contains('disabled')) {
+      el.addEventListener('click', () => onDayClick(date));
+    }
+    container.appendChild(el);
+  }
+}
+
+function onDayClick(date) {
+  if (!selecting || !rangeStart) {
+    rangeStart = date; rangeEnd = null; selecting = true;
+    document.getElementById('cal-hint').textContent = 'Clique para selecionar a data final';
+  } else {
+    if (date < rangeStart) { rangeEnd = rangeStart; rangeStart = date; }
+    else rangeEnd = date;
+    selecting = false;
+    document.getElementById('cal-hint').textContent = 'Clique para selecionar a data inicial';
+  }
+  renderCal();
+}
+
+function applyDate() {
+  if (!rangeStart) return;
+  if (!rangeEnd) rangeEnd = rangeStart;
+  updateDateLabel();
+  closeCal();
+  // Dispara evento para o painel usar
+  window.dispatchEvent(new CustomEvent('filtro:data', { detail: { inicio: rangeStart, fim: rangeEnd } }));
+}
+
+function updateDateLabel() {
+  if (!rangeStart) return;
+  const fmt = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const end = rangeEnd || rangeStart;
+  document.getElementById('lbl-data').textContent = `${fmt(rangeStart)} – ${fmt(end)}`;
+}
+
+/* ═══════════════════════════════════════
+   DROPDOWNS GENÉRICOS
+═══════════════════════════════════════ */
+const DD_DATA = {
+  bandeira:  { all: ['BIG BOX','ULT'], selected: new Set() },
+  empresa:   { all: [], selected: new Set() },
+  secao:     { all: [], selected: new Set() },
+  comprador: { all: [], selected: new Set() },
+};
+
+function initDD(name, items) {
+  DD_DATA[name].all = items;
+  DD_DATA[name].selected = new Set(items);
+  renderDD(name);
+  updateDDLabel(name);
+}
+
+function renderDD(name, search = '') {
+  const { all, selected } = DD_DATA[name];
+  const list = document.getElementById(`list-${name}`);
+  list.innerHTML = '';
+  const filtered = search ? all.filter(i => i.toLowerCase().includes(search.toLowerCase())) : all;
+  const allSelected = all.every(i => selected.has(i));
+
+  // Selecionar todos
+  const allItem = document.createElement('div');
+  allItem.className = 'dd-item select-all' + (allSelected ? ' all-selected' : '');
+  allItem.innerHTML = `<div class="dd-checkbox"></div><span>Selecionar todos</span>`;
+  allItem.onclick = () => toggleAll(name);
+  list.appendChild(allItem);
+
+  filtered.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'dd-item' + (selected.has(item) ? ' selected' : '');
+    el.innerHTML = `<div class="dd-checkbox"></div><span>${item}</span>`;
+    el.onclick = () => toggleItem(name, item);
+    list.appendChild(el);
+  });
+
+  const count = document.getElementById(`count-${name}`);
+  count.textContent = `${selected.size} de ${all.length} selecionados`;
+}
+
+function toggleItem(name, item) {
+  const s = DD_DATA[name].selected;
+  if (s.has(item)) s.delete(item); else s.add(item);
+  renderDD(name);
+}
+
+function toggleAll(name) {
+  const { all, selected } = DD_DATA[name];
+  if (all.every(i => selected.has(i))) selected.clear();
+  else all.forEach(i => selected.add(i));
+  renderDD(name);
+}
+
+function filterDD(name, val) { renderDD(name, val); }
+
+function applyDD(name) {
+  updateDDLabel(name);
+  closeAllDropdowns();
+  window.dispatchEvent(new CustomEvent(`filtro:${name}`, { detail: { selected: [...DD_DATA[name].selected] } }));
+}
+
+function updateDDLabel(name) {
+  const { all, selected } = DD_DATA[name];
+  const lbl = document.getElementById(`lbl-${name}`);
+  const labels = { bandeira:'Bandeira', empresa:'Empresa', secao:'Seção', comprador:'Comprador' };
+  if (selected.size === 0)        lbl.textContent = labels[name];
+  else if (selected.size === all.length) lbl.textContent = labels[name];
+  else if (selected.size === 1)   lbl.textContent = [...selected][0];
+  else                            lbl.textContent = `${labels[name]} (${selected.size})`;
+}
+
+function toggleDD(name) {
+  const dd  = document.getElementById(`dd-${name}`);
+  const btn = document.getElementById(`btn-${name}`);
+  const wasOpen = dd.classList.contains('open');
+  closeAllDropdowns();
+  if (!wasOpen) {
+    dd.classList.add('open');
+    btn.classList.add('active');
+    renderDD(name);
+  }
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.filter-dropdown, .cal-dropdown').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+}
+
+// Fecha ao clicar fora
+document.addEventListener('click', e => {
+  if (!e.target.closest('.filter-btn') && !e.target.closest('.filter-dropdown') && !e.target.closest('.cal-dropdown')) {
+    closeAllDropdowns();
+  }
+});
+
+// Inicializa com dados de exemplo (substituir por dados reais via API)
+initCal();
+initDD('bandeira', ['BIG BOX', 'ULT']);
+initDD('empresa',  []);
+initDD('secao',    []);
+initDD('comprador',[]);
+</script>
+
+</body>
+</html>
